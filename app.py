@@ -495,6 +495,7 @@ data = {
     "iRobot Roomba j7+ con estación de vaciado"
   ]
 }
+
 df_busquedas = pd.DataFrame(data)
 
 # --- Entrenamiento del modelo TF-IDF + KNN ---
@@ -504,29 +505,54 @@ X = tfidf.fit_transform(df_busquedas["busqueda"])
 knn_model = NearestNeighbors(n_neighbors=3, metric="cosine")
 knn_model.fit(X)
 
-# --- Función mejorada de sugerencia ---
+# --- Función basada en similitud semántica ---
 def sugerir_anuncios_tfidf(user_input):
     vec = tfidf.transform([user_input])
     _, indices = knn_model.kneighbors(vec)
     sugerencias = df_busquedas.iloc[indices[0]]["anuncio_sugerido"].unique()
     return list(sugerencias)
 
-# --- Interfaz Streamlit ---
-st.set_page_config(page_title="🔍 Anuncios Inteligentes", layout="centered")
+# --- Función basada en tema de interés exacto ---
+def sugerir_anuncios_por_tema(busqueda_usuario):
+    busqueda_usuario_lower = busqueda_usuario.lower()
+    temas_relacionados = df_busquedas[df_busquedas["busqueda"].str.contains(busqueda_usuario_lower, case=False)]["tema_interes"].unique()
 
-st.title("🧠 Sugeridor de Anuncios Inteligente")
-st.markdown("Introduce una búsqueda y el sistema sugerirá anuncios similares con IA (TF-IDF + KNN).")
+    sugerencias = []
+    if len(temas_relacionados) > 0:
+        for tema in temas_relacionados:
+            anuncios_posibles = df_busquedas[df_busquedas["tema_interes"] == tema]["anuncio_sugerido"].tolist()
+            sugerencias.extend(anuncios_posibles)
+    else:
+        sugerencias = ["Anuncios generales: ¡Descubre ofertas en productos variados!", 
+                       "Prueba nuestros servicios premium", 
+                       "Explora nuevas categorías"]
+    return list(set(sugerencias))[:5]
+
+# --- Interfaz de Usuario con Streamlit ---
+st.set_page_config(page_title="🧠 Sugeridor de Anuncios Inteligente", layout="centered")
+
+st.title("🔍 Sugerencia de Anuncios con IA + Búsqueda")
+st.markdown("""
+Este sistema usa dos enfoques:
+- **Similitud semántica (TF-IDF + KNN)** para encontrar sugerencias similares a tu búsqueda.
+- **Coincidencia exacta** basada en temas de interés.
+""")
 
 user_input = st.text_input("¿Qué estás buscando?", placeholder="Ej: bicicleta para montaña, alimentos para gatos")
 
 if user_input:
-    st.subheader("Anuncios Sugeridos para ti:")
-    sugerencias = sugerir_anuncios_tfidf(user_input)
-    if sugerencias:
-        for anuncio in sugerencias:
-            st.success(f"👉 {anuncio}")
-    else:
-        st.warning("No se encontraron sugerencias para esta búsqueda.")
+    st.subheader("🔗 Anuncios por Coincidencia de Tema:")
+    sugerencias_tema = sugerir_anuncios_por_tema(user_input)
+    for anuncio in sugerencias_tema:
+        st.info(f"📌 {anuncio}")
+
+    st.subheader("🤖 Anuncios por Similitud (TF-IDF + KNN):")
+    sugerencias_tfidf = sugerir_anuncios_tfidf(user_input)
+    for anuncio in sugerencias_tfidf:
+        st.success(f"👉 {anuncio}")
 
 st.markdown("---")
-st.caption("Este sistema usa técnicas de vectorización TF-IDF y búsqueda por similitud con KNN.")
+st.subheader("🔍 Dataset de Ejemplo")
+st.dataframe(df_busquedas)
+
+st.caption("Este demo combina búsqueda exacta y recomendaciones con IA. En producción, podrías usar embeddings, segmentación de usuarios, historial de clics, etc.")
