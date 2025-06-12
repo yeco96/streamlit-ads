@@ -506,22 +506,22 @@ knn_model.fit(X)
 
 # --- Función con umbral de similitud ---
 def sugerir_anuncios_tfidf(user_input, umbral=0.6):
-    # Vectorizar la búsqueda del usuario
+    # Vectorizamos la entrada del usuario
     vec = tfidf.transform([user_input])
     distancias, indices = knn_model.kneighbors(vec)
 
-    # Mostrar debugging en Streamlit
+    # Debug opcional (puedes quitar estos prints en producción)
+    st.write("📊 Distancias:", distancias[0].tolist())
     st.write("🔍 Búsquedas similares encontradas:", df_busquedas.iloc[indices[0]]["busqueda"].tolist())
-    st.write("📉 Distancias (cuanto más bajo, mejor):", distancias[0].tolist())
 
-    # Recorrer los resultados y filtrar por umbral
+    # Filtrar sugerencias que estén por debajo del umbral
     sugerencias = []
     for i, dist in enumerate(distancias[0]):
         if dist < umbral:
             anuncio = df_busquedas.iloc[indices[0][i]]["anuncio_sugerido"]
             sugerencias.append(anuncio)
 
-    # Si no hay sugerencias suficientemente similares, usar fallback
+    # Si no hay sugerencias suficientemente similares
     if not sugerencias:
         st.warning("⚠️ No hay coincidencias suficientemente similares.")
         sugerencias = df_busquedas.sample(3)["anuncio_sugerido"].tolist()
