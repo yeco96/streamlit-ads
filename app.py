@@ -1,7 +1,9 @@
 import streamlit as st
+from collections import Counter
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
+
 
 # --- Dataset simplificado para demostración (usa el tuyo completo en producción) ---
 data = {
