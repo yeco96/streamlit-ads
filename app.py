@@ -508,14 +508,21 @@ knn_model.fit(X)
 def sugerir_anuncios_tfidf(user_input, umbral=0.6):
     vec = tfidf.transform([user_input])
     distancias, indices = knn_model.kneighbors(vec)
+
     st.write("🔍 Búsquedas similares encontradas:", df_busquedas.iloc[indices[0]]["busqueda"].tolist())
     st.write("📉 Distancias (cuanto más bajo, mejor):", distancias[0].tolist())
 
-    if distancias[0][0] < umbral:
-        sugerencias = df_busquedas.iloc[indices[0]]["anuncio_sugerido"].unique()
-    else:
-        sugerencias = ["No hay coincidencias relevantes. Intenta con otra búsqueda."]
-    return list(sugerencias)
+    # Filtrar resultados por similitud (distancia < umbral)
+    sugerencias = []
+    for i, dist in enumerate(distancias[0]):
+        if dist < umbral:
+            anuncio = df_busquedas.iloc[indices[0][i]]["anuncio_sugerido"]
+            sugerencias.append(anuncio)
+
+    if not sugerencias:
+        sugerencias = ["⚠️ No hay coincidencias suficientemente similares."]
+
+    return list(set(sugerencias))
 
 # --- Función por tema de interés ---
 def sugerir_anuncios_por_tema(busqueda_usuario):
