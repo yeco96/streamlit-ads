@@ -498,61 +498,60 @@ data = {
 
 df_busquedas = pd.DataFrame(data)
 
-# --- Entrenamiento del modelo TF-IDF + KNN ---
+# --- Modelo TF-IDF + KNN ---
 tfidf = TfidfVectorizer()
 X = tfidf.fit_transform(df_busquedas["busqueda"])
-
 knn_model = NearestNeighbors(n_neighbors=3, metric="cosine")
 knn_model.fit(X)
 
-# --- Función basada en similitud semántica ---
-def sugerir_anuncios_tfidf(user_input):
+# --- Función con umbral de similitud ---
+def sugerir_anuncios_tfidf(user_input, umbral=0.6):
     vec = tfidf.transform([user_input])
-    _, indices = knn_model.kneighbors(vec)
-    sugerencias = df_busquedas.iloc[indices[0]]["anuncio_sugerido"].unique()
+    distancias, indices = knn_model.kneighbors(vec)
+    st.write("🔍 Búsquedas similares encontradas:", df_busquedas.iloc[indices[0]]["busqueda"].tolist())
+    st.write("📉 Distancias (cuanto más bajo, mejor):", distancias[0].tolist())
+
+    if distancias[0][0] < umbral:
+        sugerencias = df_busquedas.iloc[indices[0]]["anuncio_sugerido"].unique()
+    else:
+        sugerencias = ["No hay coincidencias relevantes. Intenta con otra búsqueda."]
     return list(sugerencias)
 
-# --- Función basada en tema de interés exacto ---
+# --- Función por tema de interés ---
 def sugerir_anuncios_por_tema(busqueda_usuario):
     busqueda_usuario_lower = busqueda_usuario.lower()
     temas_relacionados = df_busquedas[df_busquedas["busqueda"].str.contains(busqueda_usuario_lower, case=False)]["tema_interes"].unique()
-
     sugerencias = []
+
     if len(temas_relacionados) > 0:
         for tema in temas_relacionados:
             anuncios_posibles = df_busquedas[df_busquedas["tema_interes"] == tema]["anuncio_sugerido"].tolist()
             sugerencias.extend(anuncios_posibles)
     else:
-        sugerencias = ["Anuncios generales: ¡Descubre ofertas en productos variados!", 
-                       "Prueba nuestros servicios premium", 
-                       "Explora nuevas categorías"]
+        sugerencias = ["Anuncios generales: descubre nuevas ofertas."]
     return list(set(sugerencias))[:5]
 
-# --- Interfaz de Usuario con Streamlit ---
-st.set_page_config(page_title="🧠 Sugeridor de Anuncios Inteligente", layout="centered")
+# --- UI con Streamlit ---
+st.set_page_config(page_title="🔍 Sugeridor de Anuncios", layout="centered")
 
-st.title("🔍 Sugerencia de Anuncios con IA + Búsqueda")
-st.markdown("""
-Este sistema usa dos enfoques:
-- **Similitud semántica (TF-IDF + KNN)** para encontrar sugerencias similares a tu búsqueda.
-- **Coincidencia exacta** basada en temas de interés.
-""")
+st.title("🧠 Sugeridor de Anuncios con IA")
+st.markdown("Ingresa una búsqueda para recibir sugerencias relevantes:")
 
-user_input = st.text_input("¿Qué estás buscando?", placeholder="Ej: bicicleta para montaña, alimentos para gatos")
+user_input = st.text_input("¿Qué estás buscando?", placeholder="Ej: smartwatch para correr, drones con cámara")
 
 if user_input:
-    st.subheader("🔗 Anuncios por Coincidencia de Tema:")
+    st.subheader("📌 Basado en Tema de Interés:")
     sugerencias_tema = sugerir_anuncios_por_tema(user_input)
-    for anuncio in sugerencias_tema:
-        st.info(f"📌 {anuncio}")
+    for sug in sugerencias_tema:
+        st.info(f"📎 {sug}")
 
-    st.subheader("🤖 Anuncios por Similitud (TF-IDF + KNN):")
+    st.subheader("🤖 Basado en Similitud (TF-IDF + KNN):")
     sugerencias_tfidf = sugerir_anuncios_tfidf(user_input)
-    for anuncio in sugerencias_tfidf:
-        st.success(f"👉 {anuncio}")
+    for sug in sugerencias_tfidf:
+        st.success(f"👉 {sug}")
 
 st.markdown("---")
-st.subheader("🔍 Dataset de Ejemplo")
+st.subheader("🗃️ Dataset utilizado")
 st.dataframe(df_busquedas)
 
-st.caption("Este demo combina búsqueda exacta y recomendaciones con IA. En producción, podrías usar embeddings, segmentación de usuarios, historial de clics, etc.")
+st.caption("Este demo usa TF-IDF y KNN para encontrar anuncios similares. El umbral filtra similitudes débiles para evitar resultados genéricos.")
